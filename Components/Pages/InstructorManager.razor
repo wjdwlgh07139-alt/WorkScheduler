@@ -1,0 +1,126 @@
+﻿@page "/instructors"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Models.Entities
+@using Services
+
+@inject InstructorService InstructorService
+@inject SubjectService SubjectService
+
+<PageTitle>강사 관리</PageTitle>
+
+<div class="container mt-4">
+    <h3>강사 관리</h3>
+
+    <div class="card mb-4">
+        <div class="card-header">새 강사 등록</div>
+        <div class="card-body">
+            <EditForm Model="@newInstructor" OnValidSubmit="HandleSave" FormName="InstructorRegisterForm">
+                <DataAnnotationsValidator />
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>이름</label>
+                        <InputText @bind-Value="newInstructor.Name" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>전화번호</label>
+                        <InputText @bind-Value="newInstructor.PhoneNumber" class="form-control" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label>담당 가능 과목 (중복 선택)</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var sub in allSubjects)
+                        {
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" 
+                                       id="sub-@sub.Id"
+                                       checked="@selectedSubjectIds.Contains(sub.Id)"
+                                       @onchange="@(e => OnSubjectToggled(sub.Id, e.Value))" />
+                                <label class="form-check-label" for="sub-@sub.Id">@sub.Name</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label>선호 시간대 (1, 2, 3... 쉼표로 구분)</label>
+                    <InputText @bind-Value="newInstructor.PreferredTimeSlots" class="form-control" placeholder="예: 1,2" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">저장</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">강사 목록</div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>이름</th>
+                    <th>과목</th>
+                    <th>선호 시간</th>
+                    <th>연락처</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var inst in instructors)
+                {
+                    <tr>
+                        <td>@inst.Name</td>
+                        <td>
+                            @foreach (var isub in inst.InstructorSubjects)
+                            {
+                                <span class="badge bg-info me-1">@isub.Subject.Name</span>
+                            }
+                        </td>
+                        <td>@inst.PreferredTimeSlots</td>
+                        <td>@inst.PhoneNumber</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Instructor newInstructor {get; set;} = new();
+    private List<Subject> allSubjects = new();
+    private List<Instructor> instructors = new();
+    private List<int> selectedSubjectIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        allSubjects = await SubjectService.GetAllSubjectsAsync();
+        instructors = await InstructorService.GetInstructorsAsync();
+    }
+
+    private void OnSubjectToggled(int subjectId, object? checkedValue)
+    {
+        if(checkedValue is bool isChecked){
+            if (isChecked)
+                selectedSubjectIds.Add(subjectId);
+            else
+                selectedSubjectIds.Remove(subjectId);
+        }
+        
+    }
+
+    private async Task HandleSave()
+    {
+        await InstructorService.CreateInstructorAsync(newInstructor, selectedSubjectIds);
+        // 초기화
+        newInstructor = new();
+        selectedSubjectIds.Clear();
+        await LoadData(); // 목록 새로고침
+    }
+}

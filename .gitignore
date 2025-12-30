@@ -1,0 +1,15 @@
+# .NET Core 관련 (빌드 결과물)
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio 임시 파일
+.vs/
+*.user
+*.suo
+
+# 환경 변수 및 설정 파일 (민감 정보 방지)
+appsettings.Development.json
+secrets.json
+
+# 기타 OS 파일
+.DS_Store

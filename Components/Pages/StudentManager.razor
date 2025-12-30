@@ -1,0 +1,130 @@
+﻿@page "/students"
+@rendermode InteractiveServer
+@using Models.Entities
+@using Services
+
+@inject StudentService StudentService
+@inject SubjectService SubjectService
+
+<PageTitle>학생 관리</PageTitle>
+
+<div class="container mt-4">
+    <h3>학생 관리</h3>
+
+    <div class="card mb-4">
+        <div class="card-header">새 학생 등록</div>
+        <div class="card-body">
+            <EditForm Model="@newStudent" OnValidSubmit="HandleSave" FormName="StudentRegisterForm">
+                <DataAnnotationsValidator />
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>이름</label>
+                        <InputText @bind-Value="newStudent.Name" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>학년</label>
+                        <InputSelect @bind-Value="newStudent.Grade" class="form-control">
+                            <option value="">-- 학년 선택 --</option>
+                            @foreach (var grade in Enum.GetValues<Grade>())
+                            {
+                                <option value="@grade">@grade.ToString()</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label>교습 과목 (중복 선택)</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var sub in allSubjects)
+                        {
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" 
+                                       id="sub-@sub.Id"
+                                       checked="@selectedSubjectIds.Contains(sub.Id)"
+                                       @onchange="@(e => OnSubjectToggled(sub.Id, e.Value))" />
+                                <label class="form-check-label" for="sub-@sub.Id">@sub.Name</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label>선호 시간대 (1, 2, 3... 쉼표로 구분)</label>
+                    <InputText @bind-Value="newStudent.PreferredTimeSlots" class="form-control" placeholder="예: 1,2" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">저장</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">학생 목록</div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>이름</th>
+                    <th>학년</th>
+                    <th>과목</th>
+                    <th>선호 시간</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var stu in students)
+                {
+                    <tr>
+                        <td>@stu.Name</td>
+                        <td>@stu.Grade</td>
+                        <td>
+                            @foreach (var ssub in stu.StudentSubjects)
+                            {
+                                <span class="badge bg-info me-1">@ssub.Subject.Name</span>
+                            }
+                        </td>
+                        <td>@stu.PreferredTimeSlots</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Student newStudent {get; set;} = new();
+    private List<Subject> allSubjects = new();
+    private List<Student> students = new();
+    private List<int> selectedSubjectIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        allSubjects = await SubjectService.GetAllSubjectsAsync();
+        students = await StudentService.GetStudentsAsync();
+    }
+
+    private void OnSubjectToggled(int subjectId, object? checkedValue)
+    {
+        if(checkedValue is bool isChecked){
+            if (isChecked)
+                selectedSubjectIds.Add(subjectId);
+            else
+                selectedSubjectIds.Remove(subjectId);
+        }
+    }
+
+    private async Task HandleSave()
+    {
+        await StudentService.CreateStudentAsync(newStudent, selectedSubjectIds);
+        // 초기화
+        newStudent = new();
+        selectedSubjectIds.Clear();
+        await LoadData(); // 목록 새로고침
+    }
+}
